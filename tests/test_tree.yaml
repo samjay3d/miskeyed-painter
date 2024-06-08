@@ -1,0 +1,37 @@
+layers:
+  - name: "Layer 1"
+    type: "paint"
+    opacity: 100
+    blend_mode: "normal"
+    source_material: chr_stone_01/chr_stone_01
+    channels:
+      - "baseColor"
+      - "height"
+    parameters:
+      brushSize: 50
+      hardness: 0.8
+  - name: "Final Touches"
+    type: "folder"
+    opacity: 100
+    blend_mode: "passThrough"
+    layers:
+      - name: "Highlights"
+        type: "paint"
+        opacity: 100
+        blend_mode: "normal"
+        channels:
+          - "baseColor"
+          - "roughness"
+        parameters:
+          brushSize: 30
+          hardness: 0.6
+      - name: "Paint"
+        type: "paint"
+        opacity: 100
+        blend_mode: "normal"
+        channels:
+          - "baseColor"
+          - "normal"
+        parameters:
+          brushSize: 25
+          hardness: 0.7
