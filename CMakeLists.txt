@@ -34,7 +34,7 @@ add_custom_command(
           -O ReleaseSmall -femit-bin=${MISAPP_BINARY}
   DEPENDS native/launcher.zig
   VERBATIM)
-add_custom_target(misapp ALL DEPENDS "${MISAPP_BINARY}")
+add_custom_target(misapp-build ALL DEPENDS "${MISAPP_BINARY}")
 install(PROGRAMS "${MISAPP_BINARY}" DESTINATION "${SKBUILD_SCRIPTS_DIR}")
 
 include(CTest)
@@ -45,7 +45,7 @@ if(BUILD_TESTING)
             -O ReleaseSmall -femit-bin=${TEST_CHILD_BINARY}
     DEPENDS native/test_child.zig
     VERBATIM)
-  add_custom_target(native-child ALL DEPENDS "${TEST_CHILD_BINARY}")
+  add_custom_target(native-child-build ALL DEPENDS "${TEST_CHILD_BINARY}")
   add_test(NAME launcher-help COMMAND "${MISAPP_BINARY}" --help)
   add_test(NAME launcher-zig-unit-tests
            COMMAND "${ZIG_EXECUTABLE}" test "${CMAKE_CURRENT_SOURCE_DIR}/native/launcher.zig")

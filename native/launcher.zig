@@ -340,7 +340,9 @@ fn enforceRequirements(allocator: Allocator, recipes: []const Recipe, environmen
     var providers = std.StringHashMap(Version).init(allocator);
     var needs_python = false;
     for (recipes) |recipe| {
-        for (recipe.requirements.items) |requirement| if (std.mem.eql(u8, requirement.name, "python")) needs_python = true;
+        for (recipe.requirements.items) |requirement| {
+            if (std.mem.eql(u8, requirement.name, "python")) needs_python = true;
+        }
         for (recipe.provisions.items) |provision| try providers.put(provision.name, parseVersion(provision.version) orelse unreachable);
     }
     if (needs_python) try providers.put("python", try managedPythonVersion(allocator, environment_root));
