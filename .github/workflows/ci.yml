@@ -48,7 +48,9 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Build wheel
-        run: python -m build --wheel
+        # Reuse the verified Zig/scikit-build toolchain above. This avoids creating a second
+        # hidden PEP 517 environment whose Python cannot reliably locate ziglang's bundled binary.
+        run: python -m build --wheel --no-isolation
       - name: Verify wheel installation
         shell: bash
         run: |
@@ -65,11 +67,11 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install checks
-        run: python -m pip install "ziglang>=0.13,<0.14" build twine
+        run: python -m pip install "ziglang>=0.13,<0.14" "scikit-build-core>=1.0" build twine
       - name: Compile Python sources
         run: python -m compileall -q src
       - name: Build distributions
-        run: python -m build
+        run: python -m build --no-isolation
       - name: Check package metadata
         run: python -m twine check dist/*
 
