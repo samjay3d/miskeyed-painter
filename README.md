@@ -87,6 +87,7 @@ environment discovery in every DCC recipe:
 ```yaml
 schema: 1
 name: Miskeyed managed Python environment
+python_requires: ">=3.9,<3.14"
 environment:
   set:
     MISAPP_SITE_PACKAGES: ${site_packages}
@@ -97,6 +98,16 @@ environment:
 These values describe the `uvx`-managed environment. They do **not** set `PYTHONPATH` and do not
 replace the DCC's embedded Python executable. A DCC-specific bootstrap decides how to make the
 managed site-packages visible after the vendor interpreter starts.
+
+`python_requires` is a comma-separated set of `>=`, `>`, `==`, `<`, or `<=` constraints. Before
+launch, `misapp` reads the managed environment's `pyvenv.cfg` and rejects an incompatible Python
+version. It never starts that interpreter to perform the check. This makes the recipe the shared
+compatibility contract: `uv` selects the environment, while the integration gates wheels that
+require a different Python ABI before they reach the DCC.
+
+The base constraint is mirrored by the distribution's `requires-python` metadata. That lets `uv`
+select a compatible interpreter up front; a DCC overlay may narrow `python_requires` further when
+its embedded interpreter or native plugin wheels require one exact Python minor version.
 
 The packaged Painter integration is an overlay:
 
@@ -137,6 +148,7 @@ as through `misapp validate APPLICATION`.
 
 The remaining data surface is intentionally small:
 
+- `python_requires` gates the managed environment using numeric Python version comparisons;
 - `executable_env` names an optional executable override variable;
 - platform groups under `executables` contain names to check on `PATH`;
 - platform groups under `search` contain conventional absolute paths;

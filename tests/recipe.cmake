@@ -2,7 +2,7 @@
 # environment and enables one edit only when the condition matches.
 set(test_python_env "${CONFIG_ROOT}/python-env")
 file(MAKE_DIRECTORY "${test_python_env}/site-packages")
-file(WRITE "${test_python_env}/pyvenv.cfg" "home = test\n")
+file(WRITE "${test_python_env}/pyvenv.cfg" "home = test\nversion = 3.12.3\n")
 execute_process(
   COMMAND "${CMAKE_COMMAND}" -E env "MISAPP_CONFIG_HOME=${CONFIG_ROOT}"
           "MISAPP_SITE_PACKAGES=${test_python_env}/site-packages"
@@ -46,6 +46,20 @@ if(NOT inspect_status EQUAL 0 OR NOT inspection MATCHES "environment.CONDITION_W
 endif()
 if(NOT inspection MATCHES "environment.MISAPP_PYTHON_ENV=${test_python_env}")
   message(FATAL_ERROR "managed Python environment was not exposed: ${inspection}")
+endif()
+
+# Reject the wrong uv-managed Python ABI before starting the DCC.
+set(incompatible_python_env "${CONFIG_ROOT}/python-env-incompatible")
+file(MAKE_DIRECTORY "${incompatible_python_env}/site-packages")
+file(WRITE "${incompatible_python_env}/pyvenv.cfg" "home = test\nversion = 3.10.9\n")
+execute_process(
+  COMMAND "${CMAKE_COMMAND}" -E env "MISAPP_CONFIG_HOME=${CONFIG_ROOT}"
+          "MISAPP_SITE_PACKAGES=${incompatible_python_env}/site-packages"
+          "TEST_APPLICATION_EXECUTABLE=${CHILD}" "${LAUNCHER}" get
+          substancepainter executable
+  RESULT_VARIABLE incompatible_status)
+if(incompatible_status EQUAL 0)
+  message(FATAL_ERROR "recipe accepted an incompatible managed Python environment")
 endif()
 
 execute_process(

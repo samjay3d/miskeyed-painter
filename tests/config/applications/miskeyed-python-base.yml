@@ -1,5 +1,6 @@
 schema: 1
 name: Test managed Python environment
+python_requires: ">=3.11,<3.14"
 environment:
   set:
     MISAPP_SITE_PACKAGES: ${site_packages}

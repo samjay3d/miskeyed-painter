@@ -7,7 +7,9 @@ name = "misapp"
 version = "0.1.0"
 description = "A tiny native application host for creative tools installed with uvx."
 readme = "README.md"
-requires-python = ">=3.9"
+# Keep uv's environment selection aligned with miskeyed-python-base.python_requires. The recipe
+# repeats the gate because user/studio recipes can impose a narrower DCC ABI requirement.
+requires-python = ">=3.9,<3.14"
 license = "MIT"
 authors = [{ name = "Sam Jay", email = "miskeyedsam@gmail.com" }]
 keywords = ["uv", "uvx", "substance-painter", "dcc", "vfx", "launcher"]
