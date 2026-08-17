@@ -1,6 +1,7 @@
 schema: 1
 name: Miskeyed managed Python environment
-python_requires: ">=3.9,<3.14"
+requires:
+  python: ">=3.9,<3.14"
 environment:
   set:
     MISAPP_SITE_PACKAGES: ${site_packages}

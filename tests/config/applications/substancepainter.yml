@@ -3,6 +3,8 @@ name: Test Painter overlay
 extends:
   - miskeyed-python-base
   - test-base
+requires:
+  substancepainter: "==10.1.1"
 environment:
   set:
     MISAPP_SITE_PACKAGES: ${site_packages}

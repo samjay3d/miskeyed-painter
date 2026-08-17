@@ -31,12 +31,14 @@ Read [VISION.md](VISION.md) before changing architecture or recipe semantics.
 - Environment edits apply only to the child process.
 - Add parser unit coverage and a recipe integration case for every schema feature.
 - Update recipe-aware `help` whenever a new configurable input is introduced.
+- Treat `requires`/`provides` as a compatibility API between installed sidecars, not as a package
+  solver. Package selection and installation remain `uv` responsibilities.
 
 ## Compatibility invariants
 
 - Keep the project version synchronized in `pyproject.toml` and `CMakeLists.txt`.
 - Keep the broad `requires-python` metadata compatible with
-  `miskeyed-python-base.yml:python_requires`; DCC overlays may narrow it.
+  `miskeyed-python-base.yml:requires.python`; DCC overlays may narrow it.
 - A wheel may expose the managed site-packages location, but it must not inject that location into
   global `PYTHONPATH`.
 - Host-side modules must remain importable without the vendor `substance_painter` module.

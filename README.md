@@ -93,7 +93,8 @@ environment discovery in every DCC recipe:
 ```yaml
 schema: 1
 name: Miskeyed managed Python environment
-python_requires: ">=3.9,<3.14"
+requires:
+  python: ">=3.9,<3.14"
 environment:
   set:
     MISAPP_SITE_PACKAGES: ${site_packages}
@@ -105,15 +106,38 @@ These values describe the `uvx`-managed environment. They do **not** set `PYTHON
 replace the DCC's embedded Python executable. A DCC-specific bootstrap decides how to make the
 managed site-packages visible after the vendor interpreter starts.
 
-`python_requires` is a comma-separated set of `>=`, `>`, `==`, `<`, or `<=` constraints. Before
+Requirements use comma-separated `>=`, `>`, `==`, `<`, or `<=` constraints. Before
 launch, `misapp` reads the managed environment's `pyvenv.cfg` and rejects an incompatible Python
 version. It never starts that interpreter to perform the check. This makes the recipe the shared
 compatibility contract: `uv` selects the environment, while the integration gates wheels that
 require a different Python ABI before they reach the DCC.
 
 The base constraint is mirrored by the distribution's `requires-python` metadata. That lets `uv`
-select a compatible interpreter up front; a DCC overlay may narrow `python_requires` further when
+select a compatible interpreter up front; a DCC overlay may narrow `requires.python` further when
 its embedded interpreter or native plugin wheels require one exact Python minor version.
+
+The same API gates application and integration versions without turning misapp into a solver. A
+versioned Painter discovery sidecar can provide a capability, while an integration requires it:
+
+```yaml
+# painter-10.yml
+provides:
+  substancepainter: 10.1.1
+
+# an integration overlay
+requires:
+  substancepainter: "==10.1.1"
+```
+
+Providers and consumers compose through `extends`. A missing or incompatible capability stops
+the launch before environment injection. `uv` still decides which distributions are installed;
+misapp only validates that the sidecars in that installed set agree.
+
+Integration distributions can ship lightweight sidecars into the shared
+`miskeyed/applications/` package directory. When a future `miskeyed` meta-package depends on
+`misapp`, Workbench, Painter, and other integration wheels, `uvx` installs those sidecars into the
+same isolated environment. The native launcher discovers them there, so adding an installed tool
+does not require registering it in a second database.
 
 The packaged Painter integration is an overlay:
 
@@ -154,7 +178,8 @@ as through `misapp validate APPLICATION`.
 
 The remaining data surface is intentionally small:
 
-- `python_requires` gates the managed environment using numeric Python version comparisons;
+- `requires` declares versioned capabilities a recipe consumes;
+- `provides` declares versioned capabilities supplied by an application or integration sidecar;
 - `executable_env` names an optional executable override variable;
 - platform groups under `executables` contain names to check on `PATH`;
 - platform groups under `search` contain conventional absolute paths;

@@ -68,6 +68,8 @@ We keep the artist-facing ideas that remain useful when `uv` owns package deploy
 - **Inspection:** `help`, `inspect`, and `get` explain inputs and resolved values.
 - **Validation:** malformed recipes and incompatible managed Python environments fail before the
   DCC starts.
+- **Versioned capabilities:** lightweight sidecars declare what an installed application or
+  integration provides and what an overlay requires, without solving or installing packages.
 - **Portability:** the same schema works across user workstations, CI, and farms.
 
 ## What we intentionally do not rebuild

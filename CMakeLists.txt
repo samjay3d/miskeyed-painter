@@ -61,4 +61,10 @@ if(BUILD_TESTING)
             "MISAPP_CONFIG_HOME=${CMAKE_CURRENT_SOURCE_DIR}/tests/config"
             "${MISAPP_BINARY}" validate invalid)
   set_tests_properties(launcher-rejects-invalid-yaml PROPERTIES WILL_FAIL TRUE)
+  add_test(
+    NAME launcher-rejects-incompatible-application
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "MISAPP_CONFIG_HOME=${CMAKE_CURRENT_SOURCE_DIR}/tests/config"
+            "${MISAPP_BINARY}" validate incompatible-application)
+  set_tests_properties(launcher-rejects-incompatible-application PROPERTIES WILL_FAIL TRUE)
 endif()

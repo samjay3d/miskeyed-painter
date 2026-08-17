@@ -69,7 +69,9 @@ execute_process(
 if(NOT help_status EQUAL 0
    OR NOT application_help MATCHES "TEST_APPLICATION_EXECUTABLE"
    OR NOT application_help MATCHES "TEST_FLAVOR"
-   OR NOT application_help MATCHES "CONDITION_WORKED")
+   OR NOT application_help MATCHES "CONDITION_WORKED"
+   OR NOT application_help MATCHES "python.*>=3.11,<3.14"
+   OR NOT application_help MATCHES "substancepainter.*==10.1.1")
   message(FATAL_ERROR "application help did not list recipe environment variables: ${application_help}")
 endif()
 

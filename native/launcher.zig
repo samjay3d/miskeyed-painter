@@ -3,14 +3,17 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const EditKind = enum { set, prepend, append };
 const Edit = struct { kind: EditKind, name: []const u8, value: []const u8, condition: ?[]const u8 = null };
+const Requirement = struct { name: []const u8, constraint: []const u8 };
+const Provision = struct { name: []const u8, version: []const u8 };
 const Recipe = struct {
     name: []const u8 = "",
     executable_env: []const u8 = "",
-    python_requires: []const u8 = "",
     executables: std.ArrayList([]const u8),
     search: std.ArrayList([]const u8),
     extends: std.ArrayList([]const u8),
     edits: std.ArrayList(Edit),
+    requirements: std.ArrayList(Requirement),
+    provisions: std.ArrayList(Provision),
 
     fn init(allocator: Allocator) Recipe {
         return .{
@@ -18,6 +21,8 @@ const Recipe = struct {
             .search = std.ArrayList([]const u8).init(allocator),
             .extends = std.ArrayList([]const u8).init(allocator),
             .edits = std.ArrayList(Edit).init(allocator),
+            .requirements = std.ArrayList(Requirement).init(allocator),
+            .provisions = std.ArrayList(Provision).init(allocator),
         };
     }
 };
@@ -61,6 +66,12 @@ fn validRecipeId(name: []const u8) bool {
     return true;
 }
 
+fn validCapabilityName(name: []const u8) bool {
+    if (name.len == 0) return false;
+    for (name) |char| if (!(std.ascii.isAlphanumeric(char) or char == '-' or char == '_' or char == '.')) return false;
+    return true;
+}
+
 fn validateCondition(expression: []const u8) bool {
     const value = trim(expression);
     if (std.mem.eql(u8, value, "always")) return true;
@@ -76,9 +87,9 @@ fn validateCondition(expression: []const u8) bool {
     return false;
 }
 
-const PythonVersion = struct { major: u32, minor: u32, patch: u32 = 0 };
+const Version = struct { major: u32, minor: u32, patch: u32 = 0 };
 
-fn parsePythonVersion(value: []const u8) ?PythonVersion {
+fn parseVersion(value: []const u8) ?Version {
     var parts = std.mem.splitScalar(u8, trim(value), '.');
     const major = std.fmt.parseUnsigned(u32, parts.next() orelse return null, 10) catch return null;
     const minor = std.fmt.parseUnsigned(u32, parts.next() orelse return null, 10) catch return null;
@@ -87,13 +98,13 @@ fn parsePythonVersion(value: []const u8) ?PythonVersion {
     return .{ .major = major, .minor = minor, .patch = patch };
 }
 
-fn comparePythonVersion(left: PythonVersion, right: PythonVersion) std.math.Order {
+fn compareVersion(left: Version, right: Version) std.math.Order {
     if (left.major != right.major) return std.math.order(left.major, right.major);
     if (left.minor != right.minor) return std.math.order(left.minor, right.minor);
     return std.math.order(left.patch, right.patch);
 }
 
-fn validatePythonRequirement(requirement: []const u8) bool {
+fn validateRequirementConstraint(requirement: []const u8) bool {
     var clauses = std.mem.splitScalar(u8, requirement, ',');
     var found = false;
     while (clauses.next()) |raw_clause| {
@@ -101,12 +112,12 @@ fn validatePythonRequirement(requirement: []const u8) bool {
         if (clause.len == 0) return false;
         found = true;
         const offset: usize = if (std.mem.startsWith(u8, clause, ">=") or std.mem.startsWith(u8, clause, "<=") or std.mem.startsWith(u8, clause, "==")) 2 else if (std.mem.startsWith(u8, clause, ">") or std.mem.startsWith(u8, clause, "<")) 1 else return false;
-        if (parsePythonVersion(clause[offset..]) == null) return false;
+        if (parseVersion(clause[offset..]) == null) return false;
     }
     return found;
 }
 
-fn pythonRequirementMatches(version: PythonVersion, requirement: []const u8) bool {
+fn requirementMatches(version: Version, requirement: []const u8) bool {
     var clauses = std.mem.splitScalar(u8, requirement, ',');
     var found = false;
     while (clauses.next()) |raw_clause| {
@@ -120,8 +131,8 @@ fn pythonRequirementMatches(version: PythonVersion, requirement: []const u8) boo
             break;
         };
         const operator = matched_operator orelse return false;
-        const wanted = parsePythonVersion(clause[operator.len..]) orelse return false;
-        const order = comparePythonVersion(version, wanted);
+        const wanted = parseVersion(clause[operator.len..]) orelse return false;
+        const order = compareVersion(version, wanted);
         const matches = if (std.mem.eql(u8, operator, ">=")) order != .lt else if (std.mem.eql(u8, operator, "<=")) order != .gt else if (std.mem.eql(u8, operator, "==")) order == .eq else if (std.mem.eql(u8, operator, ">")) order == .gt else order == .lt;
         if (!matches) return false;
     }
@@ -176,18 +187,25 @@ fn parseRecipe(allocator: Allocator, path: []const u8, contents: []const u8) Par
                 if (!std.mem.eql(u8, value, "1")) return recipeError(path, line_number, "unsupported schema; expected 1");
                 schema_seen = true;
             } else if (std.mem.eql(u8, key, "name")) recipe.name = value
-            else if (std.mem.eql(u8, key, "python_requires")) {
-                if (!validatePythonRequirement(value)) return recipeError(path, line_number, "invalid python_requires; use comma-separated comparisons such as >=3.11,<3.14");
-                recipe.python_requires = value;
-            }
             else if (std.mem.eql(u8, key, "executable_env")) {
                 if (!validEnvName(value)) return recipeError(path, line_number, "executable_env must be an environment variable name");
                 recipe.executable_env = value;
             } else if (!std.mem.eql(u8, key, "extends") and !std.mem.eql(u8, key, "executables") and
-                !std.mem.eql(u8, key, "search") and !std.mem.eql(u8, key, "environment") and !std.mem.eql(u8, key, "conditions"))
+                !std.mem.eql(u8, key, "search") and !std.mem.eql(u8, key, "environment") and !std.mem.eql(u8, key, "conditions") and
+                !std.mem.eql(u8, key, "requires") and !std.mem.eql(u8, key, "provides"))
                 return recipeError(path, line_number, "unknown top-level key");
         } else if (indent == 2) {
             if (std.mem.eql(u8, section, "environment")) operation = key
+            else if (std.mem.eql(u8, section, "requires")) {
+                if (!validCapabilityName(key)) return recipeError(path, line_number, "invalid requirement name");
+                if (!validateRequirementConstraint(value)) return recipeError(path, line_number, "invalid requirement constraint; use comparisons such as >=10.1,<10.2");
+                try recipe.requirements.append(.{ .name = key, .constraint = value });
+            }
+            else if (std.mem.eql(u8, section, "provides")) {
+                if (!validCapabilityName(key)) return recipeError(path, line_number, "invalid provided capability name");
+                if (parseVersion(value) == null) return recipeError(path, line_number, "provided capability version must be numeric, such as 10.1.1");
+                try recipe.provisions.append(.{ .name = key, .version = value });
+            }
             else if (std.mem.eql(u8, section, "executables") or std.mem.eql(u8, section, "search")) {
                 if (!std.mem.eql(u8, key, "windows") and !std.mem.eql(u8, key, "macos") and !std.mem.eql(u8, key, "linux"))
                     return recipeError(path, line_number, "platform must be windows, macos, or linux");
@@ -295,7 +313,7 @@ fn pythonExecutable(allocator: Allocator, environment_root: []const u8) ![]const
         std.fs.path.join(allocator, &.{ environment_root, "bin", "python" });
 }
 
-fn managedPythonVersion(allocator: Allocator, environment_root: []const u8) !PythonVersion {
+fn managedPythonVersion(allocator: Allocator, environment_root: []const u8) !Version {
     const marker = try std.fs.path.join(allocator, &.{ environment_root, "pyvenv.cfg" });
     const contents = std.fs.cwd().readFileAlloc(allocator, marker, 64 * 1024) catch {
         std.debug.print("misapp: managed Python environment has no readable pyvenv.cfg: {s}\n", .{marker});
@@ -312,31 +330,52 @@ fn managedPythonVersion(allocator: Allocator, environment_root: []const u8) !Pyt
         var end: usize = 0;
         while (end < raw_version.len and (std.ascii.isDigit(raw_version[end]) or raw_version[end] == '.')) end += 1;
         while (end > 0 and raw_version[end - 1] == '.') end -= 1;
-        return parsePythonVersion(raw_version[0..end]) orelse error.InvalidPythonEnvironment;
+        return parseVersion(raw_version[0..end]) orelse error.InvalidPythonEnvironment;
     }
     std.debug.print("misapp: pyvenv.cfg does not declare version or version_info: {s}\n", .{marker});
     return error.InvalidPythonEnvironment;
 }
 
-fn enforcePythonRequirements(allocator: Allocator, recipes: []const Recipe, environment_root: []const u8) !void {
-    var required = false;
+fn enforceRequirements(allocator: Allocator, recipes: []const Recipe, environment_root: []const u8) !void {
+    var providers = std.StringHashMap(Version).init(allocator);
+    var needs_python = false;
     for (recipes) |recipe| {
-        if (recipe.python_requires.len != 0) {
-            required = true;
-            break;
-        }
+        for (recipe.requirements.items) |requirement| if (std.mem.eql(u8, requirement.name, "python")) needs_python = true;
+        for (recipe.provisions.items) |provision| try providers.put(provision.name, parseVersion(provision.version) orelse unreachable);
     }
-    if (!required) return;
-    const version = try managedPythonVersion(allocator, environment_root);
-    for (recipes) |recipe| {
-        if (recipe.python_requires.len != 0 and !pythonRequirementMatches(version, recipe.python_requires)) {
+    if (needs_python) try providers.put("python", try managedPythonVersion(allocator, environment_root));
+    for (recipes) |recipe| for (recipe.requirements.items) |requirement| {
+        const version = providers.get(requirement.name) orelse {
+            std.debug.print("misapp: required capability '{s}' has no provider in the recipe chain\n", .{requirement.name});
+            return error.MissingRequirement;
+        };
+        if (!requirementMatches(version, requirement.constraint)) {
             std.debug.print(
-                "misapp: managed Python {d}.{d}.{d} does not satisfy '{s}' required by '{s}'\n",
-                .{ version.major, version.minor, version.patch, recipe.python_requires, recipe.name },
+                "misapp: {s} {d}.{d}.{d} does not satisfy '{s}' required by '{s}'\n",
+                .{ requirement.name, version.major, version.minor, version.patch, requirement.constraint, recipe.name },
             );
-            return error.IncompatiblePython;
+            return error.IncompatibleRequirement;
         }
-    }
+    };
+}
+
+fn validateRequirementProviders(allocator: Allocator, recipes: []const Recipe) !void {
+    var providers = std.StringHashMap(Version).init(allocator);
+    for (recipes) |recipe| for (recipe.provisions.items) |provision| try providers.put(provision.name, parseVersion(provision.version) orelse unreachable);
+    for (recipes) |recipe| for (recipe.requirements.items) |requirement| {
+        if (std.mem.eql(u8, requirement.name, "python")) continue;
+        const version = providers.get(requirement.name) orelse {
+            std.debug.print("misapp: required capability '{s}' has no provider in the recipe chain\n", .{requirement.name});
+            return error.MissingRequirement;
+        };
+        if (!requirementMatches(version, requirement.constraint)) {
+            std.debug.print(
+                "misapp: provided {s} {d}.{d}.{d} does not satisfy '{s}' required by '{s}'\n",
+                .{ requirement.name, version.major, version.minor, version.patch, requirement.constraint, recipe.name },
+            );
+            return error.IncompatibleRequirement;
+        }
+    };
 }
 
 fn expand(allocator: Allocator, input: []const u8, site: []const u8, python_env: []const u8, python_executable: []const u8) ![]const u8 {
@@ -400,13 +439,15 @@ fn userRecipePath(allocator: Allocator, configured_root: []const u8, application
 fn printApplicationHelp(writer: anytype, allocator: Allocator, application: []const u8, configured_root: []const u8, recipes: []const Recipe) !void {
     try writer.print("Application: {s}\nUser recipe: {s}\nRecipe chain:", .{ application, try userRecipePath(allocator, configured_root, application) });
     for (recipes) |recipe| try writer.print("\n  - {s}", .{recipe.name});
-    try writer.writeAll("\n\nManaged Python requirements:\n");
-    var has_python_requirement = false;
-    for (recipes) |recipe| if (recipe.python_requires.len != 0) {
-        has_python_requirement = true;
-        try writer.print("  {s}: {s}\n", .{ recipe.name, recipe.python_requires });
+    try writer.writeAll("\n\nRequirements:\n");
+    var has_requirement = false;
+    for (recipes) |recipe| for (recipe.requirements.items) |requirement| {
+        has_requirement = true;
+        try writer.print("  {s} {s} ({s})\n", .{ requirement.name, requirement.constraint, recipe.name });
     };
-    if (!has_python_requirement) try writer.writeAll("  (none)\n");
+    if (!has_requirement) try writer.writeAll("  (none)\n");
+    try writer.writeAll("\nProvided capabilities:\n  python: managed uv environment\n");
+    for (recipes) |recipe| for (recipe.provisions.items) |provision| try writer.print("  {s}: {s} ({s})\n", .{ provision.name, provision.version, recipe.name });
     try writer.writeAll("\n\nAvailable input environment variables:\n");
     var inputs = std.StringHashMap(void).init(allocator);
     for (recipes) |recipe| {
@@ -496,6 +537,7 @@ pub fn main() !void {
         std.debug.print("misapp: recipe chain has no executable discovery rule\n", .{});
         return error.InvalidRecipe;
     }
+    try validateRequirementProviders(allocator, recipes.items);
     if (helping) {
         if (!inline_help and args.len != application_index + 1) { usage(); return error.InvalidArguments; }
         try printApplicationHelp(stdout, allocator, application, configured_root, recipes.items);
@@ -510,7 +552,7 @@ pub fn main() !void {
     const site = std.posix.getenv("MISAPP_SITE_PACKAGES") orelse if (std.mem.endsWith(u8, root, "miskeyed")) std.fs.path.dirname(root) orelse root else root;
     const python_env = try pythonEnvironmentRoot(allocator, site);
     const python_executable = try pythonExecutable(allocator, python_env);
-    try enforcePythonRequirements(allocator, recipes.items, python_env);
+    try enforceRequirements(allocator, recipes.items, python_env);
     for (recipes.items) |recipe| for (recipe.edits.items) |edit| if (conditionMatches(edit.condition)) {
         const value = try expand(allocator, edit.value, site, python_env, python_executable);
         const inherited = environment.get(edit.name) orelse "";
@@ -557,9 +599,9 @@ test "condition syntax validator" {
     try std.testing.expect(!validateCondition("run arbitrary code"));
 }
 
-test "managed Python requirement validator" {
-    try std.testing.expect(validatePythonRequirement(">=3.11,<3.14"));
-    try std.testing.expect(!validatePythonRequirement("~=3.12"));
-    try std.testing.expect(pythonRequirementMatches(.{ .major = 3, .minor = 12, .patch = 3 }, ">=3.11,<3.14"));
-    try std.testing.expect(!pythonRequirementMatches(.{ .major = 3, .minor = 10, .patch = 9 }, ">=3.11,<3.14"));
+test "version requirement validator" {
+    try std.testing.expect(validateRequirementConstraint(">=3.11,<3.14"));
+    try std.testing.expect(!validateRequirementConstraint("~=3.12"));
+    try std.testing.expect(requirementMatches(.{ .major = 3, .minor = 12, .patch = 3 }, ">=3.11,<3.14"));
+    try std.testing.expect(!requirementMatches(.{ .major = 3, .minor = 10, .patch = 9 }, ">=3.11,<3.14"));
 }
