@@ -1,0 +1,6 @@
+schema: 1
+name: Test executable base
+executable_env: TEST_APPLICATION_EXECUTABLE
+environment:
+  set:
+    CHAIN_WORKED: yes

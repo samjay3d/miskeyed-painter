@@ -1,0 +1,12 @@
+schema: 1
+name: Miskeyed Substance Painter
+extends:
+  - miskeyed-python-base
+  - painter-base
+environment:
+  prepend:
+    SUBSTANCE_PAINTER_PLUGINS_PATH: ${site_packages}/miskeyed/plugins/startup
+conditions:
+  - when: env.MISKEYED_DEBUG
+    set:
+      MISKEYED_DEBUG: enabled

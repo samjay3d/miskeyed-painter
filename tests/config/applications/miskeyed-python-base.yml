@@ -1,0 +1,7 @@
+schema: 1
+name: Test managed Python environment
+environment:
+  set:
+    MISAPP_SITE_PACKAGES: ${site_packages}
+    MISAPP_PYTHON_ENV: ${python_env}
+    MISAPP_PYTHON_EXECUTABLE: ${python_executable}

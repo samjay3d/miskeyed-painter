@@ -1,0 +1,14 @@
+schema: 1
+name: Test Painter overlay
+extends:
+  - miskeyed-python-base
+  - test-base
+environment:
+  set:
+    MISAPP_SITE_PACKAGES: ${site_packages}
+  prepend:
+    SUBSTANCE_PAINTER_PLUGINS_PATH: new
+conditions:
+  - when: env.TEST_FLAVOR == enabled
+    set:
+      CONDITION_WORKED: yes

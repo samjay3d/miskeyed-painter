@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build tools
+        run: python -m pip install "ziglang>=0.13,<0.14" "scikit-build-core>=1.0" build
+      - name: Configure
+        run: cmake -S . -B build -DSKBUILD_SCRIPTS_DIR=bin -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Build wheel
+        run: python -m build --wheel
+      - name: Verify wheel installation
+        shell: bash
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          python -c "import subprocess; subprocess.run(['misapp', '--help'], check=True)"
+
+  source:
+    name: Source and metadata checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install checks
+        run: python -m pip install "ziglang>=0.13,<0.14" build twine
+      - name: Compile Python sources
+        run: python -m compileall -q src
+      - name: Build distributions
+        run: python -m build
+      - name: Check package metadata
+        run: python -m twine check dist/*
+
+  ci:
+    name: CI
+    if: always()
+    needs: [native, source]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every check
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          test "$RESULTS" = "success,success" || {
+            echo "Required job result(s): $RESULTS"
+            exit 1
+          }

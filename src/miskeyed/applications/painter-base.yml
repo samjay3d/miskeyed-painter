@@ -1,0 +1,19 @@
+schema: 1
+name: Adobe Substance 3D Painter executable
+executable_env: SUBSTANCE_PAINTER_EXECUTABLE
+executables:
+  windows:
+    - Adobe Substance 3D Painter.exe
+    - Adobe_Substance_3D_Painter.exe
+  macos:
+    - Adobe Substance 3D Painter
+  linux:
+    - substance-painter
+    - Adobe_Substance_3D_Painter
+search:
+  windows:
+    - ${program_files}/Adobe/Adobe Substance 3D Painter/Adobe Substance 3D Painter.exe
+  macos:
+    - /Applications/Adobe Substance 3D Painter.app/Contents/MacOS/Adobe Substance 3D Painter
+  linux:
+    - /opt/Adobe/Adobe_Substance_3D_Painter/Adobe_Substance_3D_Painter

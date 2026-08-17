@@ -1,0 +1,7 @@
+schema: 1
+name: Invalid condition test
+executable_env: TEST_APPLICATION_EXECUTABLE
+conditions:
+  - when: execute(shell)
+    set:
+      SHOULD_NOT_RUN: yes
