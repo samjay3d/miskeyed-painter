@@ -29,8 +29,20 @@ jobs:
           cache: pip
       - name: Install build tools
         run: python -m pip install "ziglang>=0.13,<0.14" "scikit-build-core>=1.0" build
+      - name: Resolve Zig compiler
+        run: >-
+          python -c "import os, pathlib, ziglang;
+          path=pathlib.Path(ziglang.__file__).parent / ('zig.exe' if os.name == 'nt' else 'zig');
+          assert path.is_file(), path;
+          open(os.environ['GITHUB_ENV'], 'a').write(f'ZIG_EXECUTABLE={path}\n')"
+      - name: Check Zig compiler
+        run: python -c "import os, subprocess; subprocess.run([os.environ['ZIG_EXECUTABLE'], 'version'], check=True)"
       - name: Configure
-        run: cmake -S . -B build -DSKBUILD_SCRIPTS_DIR=bin -DCMAKE_BUILD_TYPE=Release
+        run: >-
+          python -c "import os, subprocess;
+          subprocess.run(['cmake', '-S', '.', '-B', 'build', '-DSKBUILD_SCRIPTS_DIR=bin',
+          '-DCMAKE_BUILD_TYPE=Release', '-DZIG_EXECUTABLE=' + os.environ['ZIG_EXECUTABLE']],
+          check=True)"
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test

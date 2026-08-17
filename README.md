@@ -175,6 +175,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Zig may be installed either as a system executable or through the `ziglang` Python package used
+by isolated wheel builds. CMake checks `PATH` first and then resolves the compiler bundled inside
+`ziglang`; installing the build dependency does not require its package directory to be added to
+`PATH`.
+
 ## Release automation
 
 This repository starts at version `0.1.0`. Pull requests build the launcher, execute its native

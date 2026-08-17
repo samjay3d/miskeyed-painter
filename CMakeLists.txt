@@ -1,7 +1,27 @@
 cmake_minimum_required(VERSION 3.24)
 project(misapp VERSION 0.1.0 LANGUAGES NONE)
 
-find_program(ZIG_EXECUTABLE zig REQUIRED)
+# The `ziglang` PyPI package intentionally exposes Zig through `python -m ziglang`; it does not
+# install `zig` onto PATH on every platform. Prefer a system toolchain, then locate the binary
+# bundled in the build environment declared by build-system.requires.
+find_program(ZIG_EXECUTABLE NAMES zig)
+if(NOT ZIG_EXECUTABLE)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c
+            "import os, pathlib, ziglang; print(pathlib.Path(ziglang.__file__).parent / ('zig.exe' if os.name == 'nt' else 'zig'))"
+    RESULT_VARIABLE ZIG_DISCOVERY_STATUS
+    OUTPUT_VARIABLE ZIG_DISCOVERED_EXECUTABLE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  if(ZIG_DISCOVERY_STATUS EQUAL 0 AND EXISTS "${ZIG_DISCOVERED_EXECUTABLE}")
+    set(ZIG_EXECUTABLE "${ZIG_DISCOVERED_EXECUTABLE}" CACHE FILEPATH "Zig compiler" FORCE)
+  else()
+    message(FATAL_ERROR
+            "Could not find Zig on PATH or in the Python 'ziglang' build dependency")
+  endif()
+endif()
+message(STATUS "Using Zig: ${ZIG_EXECUTABLE}")
 if(WIN32)
   set(NATIVE_SUFFIX ".exe")
 endif()
