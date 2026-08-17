@@ -1,5 +1,8 @@
 # misapp
 
+> See [VISION.md](VISION.md) for the long-term product boundary and why `uv`, rather than
+> misapp, owns dependency resolution and deployment.
+
 `misapp` is a small native application host written in **Zig**. [`uvx`](https://docs.astral.sh/uv/concepts/tools/)
 creates the isolated package environment; `misapp` validates one application recipe, composes
 its parent recipes, changes only the child environment, and launches the DCC.
@@ -8,6 +11,9 @@ The distribution includes a reusable `miskeyed-python-base` recipe. A future rec
 `miskeyed` meta-package can depend on `misapp` plus all approved integrations, so one
 `uvx miskeyed ...` installation owns the complete tool payload while each DCC still uses its
 vendor-provided interpreter and SDK.
+
+The short version is: **`uv` installs the pipeline; misapp connects that installed payload to an
+external creative application.** Recipes describe only that last environment boundary.
 
 ```console
 uvx misapp substancepainter
