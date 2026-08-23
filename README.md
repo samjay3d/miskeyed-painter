@@ -208,6 +208,33 @@ Painter receives the packaged bootstrap through its plugin path. Only after Pain
 its embedded interpreter does that bootstrap call `site.addsitedir()`; `misapp` never sets
 `PYTHONPATH` or mutates the parent shell.
 
+## Rez comparison experiment
+
+This branch keeps the native implementation, but also ships an intentionally separate
+`misapp-rez` comparison harness. It lets Rez own the final process context while `uvx` still owns
+installation of the Python payload:
+
+```console
+uvx --from 'misapp[rez]' misapp-rez substancepainter -- --mesh model.fbx
+uvx --from 'misapp[rez]' misapp-rez --dry-run substancepainter
+```
+
+The bridge asks native `misapp inspect` for the discovered executable and resolved child
+environment, writes a temporary `misapp_uv_context/0.1.0/package.py`, and launches the executable
+through `rez-env`. `--dry-run` prints both the generated Rez package and command for comparison.
+It does not modify a global Rez repository or the parent shell.
+
+This is deliberately a migration experiment rather than a second production path. It answers two
+questions with running code:
+
+1. Is Rez's context/launch machinery small enough when installed ephemerally by `uvx`?
+2. Can a future `rez-pip`/`rez-pip2` hook generate the DCC-specific `package.py` directly, making
+   most of the custom recipe engine unnecessary?
+
+The experiment currently uses misapp for discovery so the outputs can be compared exactly. If Rez
+is adopted, discovery and environment declarations should move into generated Rez packages and
+the duplicate recipe implementation should be deleted—not maintained indefinitely.
+
 ## Development
 
 A Zig 0.13 toolchain is required:

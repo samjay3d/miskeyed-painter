@@ -29,6 +29,14 @@ classifiers = [
   "Topic :: Multimedia :: Graphics :: 3D Modeling",
 ]
 
+[project.optional-dependencies]
+# Experimental comparison path only. The normal `misapp` launcher remains native and has no
+# runtime dependencies; install this extra to test the same uv payload through rez-env.
+rez = ["rez"]
+
+[project.scripts]
+misapp-rez = "miskeyed.rez_bridge:main"
+
 [project.urls]
 Homepage = "https://github.com/samjay3d/miskeyed-painter"
 Repository = "https://github.com/samjay3d/miskeyed-painter"

@@ -22,6 +22,8 @@ Read [VISION.md](VISION.md) before changing architecture or recipe semantics.
 - `tests/config/applications/`: recipe fixtures.
 - `tests/recipe.cmake`: cross-platform launch integration test.
 - `.github/workflows/`: the supported build and release commands.
+- `src/miskeyed/rez_bridge.py`: optional comparison harness; it must remain separate from the
+  dependency-free native launch path.
 
 ## Recipe changes
 

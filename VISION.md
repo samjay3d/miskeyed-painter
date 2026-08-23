@@ -99,3 +99,15 @@ describes the boundary between an installed payload and an external application.
 
 Success means adding another DCC usually requires a recipe and a narrow bootstrap—not another
 environment manager.
+
+## Rez exit test
+
+The project must remain willing to delete itself. The optional `misapp-rez` harness installs Rez
+alongside the wheel with `uvx`, translates the already-resolved child environment into a temporary
+Rez package, and lets `rez-env` launch the DCC. This provides an executable comparison rather than
+an architectural argument.
+
+If a small `rez-pip` or `rez-pip2` customization can preserve the PyPI/`uvx` user experience while
+handling DCC discovery, Python ABI gating, and environment injection, Rez should own that work and
+misapp should shrink to a generator or be removed. The experiment succeeds by finding the smallest
+maintained solution, even when that solution is Rez.
