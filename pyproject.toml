@@ -1,24 +1,61 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=1.0", "ziglang>=0.13,<0.14"]
+build-backend = "scikit_build_core.build"
 
 [project]
-name = "miskeyed-painter"
+name = "misapp"
 version = "0.1.0"
-description = "Mini Toolkit of Substance Painter tools."
-readme = { file = "../../README.md", content-type = "text/markdown" }
-requires-python = ">=3.9"
-license = { text = "MIT License" }
+description = "A tiny native application host for creative tools installed with uvx."
+readme = "README.md"
+# Keep uv's environment selection aligned with miskeyed-python-base's `requires.python`. The recipe
+# repeats the gate because user/studio recipes can impose a narrower DCC ABI requirement.
+requires-python = ">=3.9,<3.14"
+license = "MIT"
 authors = [{ name = "Sam Jay", email = "miskeyedsam@gmail.com" }]
-urls = { "Homepage" = "https://github.com/samjay3d/miskeyed-painter" }
+keywords = ["uv", "uvx", "substance-painter", "dcc", "vfx", "launcher"]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Graphics :: 3D Modeling",
 ]
 
-dependencies = ["pyyaml"]
+[project.optional-dependencies]
+# Experimental comparison path only. The normal `misapp` launcher remains native and has no
+# runtime dependencies; install this extra to test the same uv payload through rez-env.
+rez = ["rez"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-namespaces = true
+[project.scripts]
+misapp-rez = "miskeyed.rez_bridge:main"
+
+[project.urls]
+Homepage = "https://github.com/samjay3d/miskeyed-painter"
+Repository = "https://github.com/samjay3d/miskeyed-painter"
+Issues = "https://github.com/samjay3d/miskeyed-painter/issues"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.24"
+cmake.build-type = "Release"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["src/miskeyed"]
+# The wheel contains a native launcher but no CPython extension ABI. One wheel per OS works with
+# every supported Python, rather than being unnecessarily tied to the build runner's Python 3.12.
+wheel.py-api = "py3"
+sdist.exclude = ["/.venv", "/build", "/.ruff_cache", "**/__pycache__"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "W"]

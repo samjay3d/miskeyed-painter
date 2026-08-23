@@ -1,0 +1,113 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-2022]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build tools
+        run: python -m pip install "ziglang>=0.13,<0.14" "scikit-build-core>=1.0" build
+      - name: Resolve Zig compiler
+        run: >-
+          python -c "import os, pathlib, ziglang;
+          path=pathlib.Path(ziglang.__file__).parent / ('zig.exe' if os.name == 'nt' else 'zig');
+          assert path.is_file(), path;
+          open(os.environ['GITHUB_ENV'], 'a').write(f'ZIG_EXECUTABLE={path}\n')"
+      - name: Check Zig compiler
+        run: python -c "import os, subprocess; subprocess.run([os.environ['ZIG_EXECUTABLE'], 'version'], check=True)"
+      - name: Configure
+        run: >-
+          python -c "import os, subprocess;
+          subprocess.run(['cmake', '-S', '.', '-B', 'build', '-DSKBUILD_SCRIPTS_DIR=bin',
+          '-DCMAKE_BUILD_TYPE=Release', '-DZIG_EXECUTABLE=' + os.environ['ZIG_EXECUTABLE']],
+          check=True)"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Build wheel
+        # Reuse the verified Zig/scikit-build toolchain above. This avoids creating a second
+        # hidden PEP 517 environment whose Python cannot reliably locate ziglang's bundled binary.
+        run: python -m build --wheel --no-isolation
+      - name: Verify wheel installation
+        shell: bash
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          python -c "import subprocess; subprocess.run(['misapp', '--help'], check=True)"
+
+  source:
+    name: Source and metadata checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install checks
+        run: python -m pip install "ziglang>=0.13,<0.14" "scikit-build-core>=1.0" build twine
+      - name: Compile Python sources
+        run: python -m compileall -q src
+      - name: Test experimental Rez bridge
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Build distributions
+        run: python -m build --no-isolation
+      - name: Check package metadata
+        run: python -m twine check dist/*
+
+  rez-comparison:
+    name: Rez context comparison
+    runs-on: ubuntu-latest
+    # Rez is an architectural experiment, not a runtime dependency of native misapp. Keep its
+    # compatibility visible without making a third-party Rez packaging regression block core CI.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          # Keep the experiment on a conservative interpreter supported by Rez and this project.
+          python-version: "3.11"
+          cache: pip
+      - name: Install Rez comparison dependency
+        run: python -m pip install rez
+      - name: Verify Rez CLI
+        run: rez-env --help
+      - name: Run bridge tests against real rez-env
+        run: PYTHONPATH=src python -m unittest discover -s tests -p test_rez_bridge.py -v
+
+  ci:
+    name: CI
+    if: always()
+    needs: [native, source]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every check
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          test "$RESULTS" = "success,success" || {
+            echo "Required job result(s): $RESULTS"
+            exit 1
+          }

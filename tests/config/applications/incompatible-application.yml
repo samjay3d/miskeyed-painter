@@ -1,0 +1,6 @@
+schema: 1
+name: Incompatible application requirement
+extends:
+  - test-base
+requires:
+  substancepainter: ">=11.0,<12.0"
