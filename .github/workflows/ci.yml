@@ -22,8 +22,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-14, windows-2022]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -61,8 +61,8 @@ jobs:
     name: Source and metadata checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -76,6 +76,26 @@ jobs:
         run: python -m build --no-isolation
       - name: Check package metadata
         run: python -m twine check dist/*
+
+  rez-comparison:
+    name: Rez context comparison
+    runs-on: ubuntu-latest
+    # Rez is an architectural experiment, not a runtime dependency of native misapp. Keep its
+    # compatibility visible without making a third-party Rez packaging regression block core CI.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          # Keep the experiment on a conservative interpreter supported by Rez and this project.
+          python-version: "3.11"
+          cache: pip
+      - name: Install Rez comparison dependency
+        run: python -m pip install rez
+      - name: Verify Rez CLI
+        run: rez-env --help
+      - name: Run bridge tests against real rez-env
+        run: PYTHONPATH=src python -m unittest discover -s tests -p test_rez_bridge.py -v
 
   ci:
     name: CI

@@ -210,6 +210,9 @@ its embedded interpreter does that bootstrap call `site.addsitedir()`; `misapp` 
 
 ## Rez comparison experiment
 
+The detailed capability and ownership comparison is in
+[REZ_EVALUATION.md](REZ_EVALUATION.md).
+
 This branch keeps the native implementation, but also ships an intentionally separate
 `misapp-rez` comparison harness. It lets Rez own the final process context while `uvx` still owns
 installation of the Python payload:

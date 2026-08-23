@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -78,6 +82,21 @@ class RezBridgeTests(unittest.TestCase):
         self.assertIn("env.SUBSTANCE_PAINTER_PLUGINS_PATH = '/uv/site/plugins'", output.getvalue())
         self.assertIn("rez-env --paths", output.getvalue())
         self.assertIn("/dcc/painter --mesh model.fbx", output.getvalue())
+
+    @unittest.skipUnless(shutil.which("rez-env"), "Rez comparison extra is not installed")
+    def test_generated_package_runs_in_real_rez_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary)
+            _write_repository(repository, {"MISAPP_REZ_PROBE": "resolved-by-rez"})
+            probe = "import os; assert os.environ['MISAPP_REZ_PROBE'] == 'resolved-by-rez'"
+            result = subprocess.run(
+                _command("rez-env", repository, sys.executable, ["-c", probe]),
+                env=os.environ.copy(),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

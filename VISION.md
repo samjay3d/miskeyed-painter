@@ -102,6 +102,9 @@ environment manager.
 
 ## Rez exit test
 
+See [REZ_EVALUATION.md](REZ_EVALUATION.md) for the explicit decision matrix and the boundary
+between a useful wheel sidecar and a second package manager.
+
 The project must remain willing to delete itself. The optional `misapp-rez` harness installs Rez
 alongside the wheel with `uvx`, translates the already-resolved child environment into a temporary
 Rez package, and lets `rez-env` launch the DCC. This provides an executable comparison rather than

@@ -1,6 +1,7 @@
 # Repository agent guide
 
-Read [VISION.md](VISION.md) before changing architecture or recipe semantics.
+Read [VISION.md](VISION.md) and [REZ_EVALUATION.md](REZ_EVALUATION.md) before changing architecture
+or recipe semantics.
 
 ## Ownership boundary
 
